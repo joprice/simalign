@@ -11,7 +11,7 @@ try:
 	from networkx.algorithms.bipartite.matrix import from_biadjacency_matrix
 except ImportError:
 	nx = None
-import torch
+from torch import device as torch_device, Tensor, no_grad
 from transformers import BertModel, BertTokenizer, XLMModel, XLMTokenizer, RobertaModel, RobertaTokenizer, XLMRobertaModel, XLMRobertaTokenizer, AutoConfig, AutoModel, AutoTokenizer
 
 from simalign.utils import get_logger
@@ -20,7 +20,7 @@ LOG = get_logger(__name__)
 
 
 class EmbeddingLoader(object):
-	def __init__(self, model: str="bert-base-multilingual-cased", device=torch.device('cpu'), layer: int=8, low_cpu_mem_usage=False):
+	def __init__(self, model: str="bert-base-multilingual-cased", device=torch_device('cpu'), layer: int=8, low_cpu_mem_usage=False):
 		TR_Models = {
 			'bert-base-uncased': (BertModel, BertTokenizer),
 			'bert-base-multilingual-cased': (BertModel, BertTokenizer),
@@ -46,20 +46,20 @@ class EmbeddingLoader(object):
 		else:
 			# try to load model with auto-classes
 			print("loading config")
-			config = AutoConfig.from_pretrained(model, output_hidden_states=True,  low_cpu_mem_usage=low_cpu_mem_usage)
+			config = AutoConfig.from_pretrained(model, output_hidden_states=True,  low_cpu_mem_usage=low_cpu_mem_usage, use_safetensors=True)
 			print("loading model")
-			self.emb_model = AutoModel.from_pretrained(model, config=config, low_cpu_mem_usage=low_cpu_mem_usage)
+			self.emb_model = AutoModel.from_pretrained(model, config=config, low_cpu_mem_usage=low_cpu_mem_usage, use_safetensors=True)
 			print("eval")
 			self.emb_model.eval()
 			print("moving model to device")
 			self.emb_model.to(self.device)
 			print("loading tokenizer")
-			self.tokenizer = AutoTokenizer.from_pretrained(model,  low_cpu_mem_usage=low_cpu_mem_usage)
+			self.tokenizer = AutoTokenizer.from_pretrained(model,  low_cpu_mem_usage=low_cpu_mem_usage, use_safetensors=True)
 		LOG.info("Initialized the EmbeddingLoader with model: {}".format(self.model))
 
-	def get_embed_list(self, sent_batch: List[List[str]]) -> torch.Tensor:
+	def get_embed_list(self, sent_batch: List[List[str]]) -> Tensor:
 		if self.emb_model is not None:
-			with torch.no_grad():
+			with no_grad():
 				if not isinstance(sent_batch[0], str):
 					inputs = self.tokenizer(sent_batch, is_split_into_words=True, padding=True, truncation=True, return_tensors="pt")
 				else:
@@ -87,7 +87,7 @@ class SentenceAligner(object):
 		self.token_type = token_type
 		self.distortion = distortion
 		self.matching_methods = [all_matching_methods[m] for m in matching_methods]
-		self.device = torch.device(device)
+		self.device = torch_device(device)
 
 		self.embed_loader = EmbeddingLoader(model=self.model, device=self.device, layer=layer, low_cpu_mem_usage=low_cpu_mem_usage)
 
