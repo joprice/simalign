@@ -23,7 +23,7 @@ LOG = get_logger(__name__)
 
 
 class EmbeddingLoader(object):
-	def __init__(self, model: str="bert-base-multilingual-cased", device=torch.device('cpu'), layer: int=8):
+	def __init__(self, model: str="bert-base-multilingual-cased", device=torch.device('cpu'), layer: int=8, low_cpu_mem_usage=False):
 		TR_Models = {
 			'bert-base-uncased': (BertModel, BertTokenizer),
 			'bert-base-multilingual-cased': (BertModel, BertTokenizer),
@@ -48,11 +48,16 @@ class EmbeddingLoader(object):
 			self.tokenizer = tokenizer_class.from_pretrained(model)
 		else:
 			# try to load model with auto-classes
-			config = AutoConfig.from_pretrained(model, output_hidden_states=True)
-			self.emb_model = AutoModel.from_pretrained(model, config=config)
+			print("loading config")
+			config = AutoConfig.from_pretrained(model, output_hidden_states=True,  low_cpu_mem_usage=low_cpu_mem_usage)
+			print("loading model")
+			self.emb_model = AutoModel.from_pretrained(model, config=config, low_cpu_mem_usage=low_cpu_mem_usage)
+			print("eval")
 			self.emb_model.eval()
+			print("moving model to device")
 			self.emb_model.to(self.device)
-			self.tokenizer = AutoTokenizer.from_pretrained(model)
+			print("loading tokenizer")
+			self.tokenizer = AutoTokenizer.from_pretrained(model,  low_cpu_mem_usage=low_cpu_mem_usage)
 		LOG.info("Initialized the EmbeddingLoader with model: {}".format(self.model))
 
 	def get_embed_list(self, sent_batch: List[List[str]]) -> torch.Tensor:
@@ -72,7 +77,7 @@ class EmbeddingLoader(object):
 
 
 class SentenceAligner(object):
-	def __init__(self, model: str = "bert", token_type: str = "bpe", distortion: float = 0.0, matching_methods: str = "mai", device: str = "cpu", layer: int = 8):
+	def __init__(self, model: str = "bert", token_type: str = "bpe", distortion: float = 0.0, matching_methods: str = "mai", device: str = "cpu", layer: int = 8, low_cpu_mem_usage = False):
 		model_names = {
 			"bert": "bert-base-multilingual-cased",
 			"xlmr": "xlm-roberta-base"
@@ -87,7 +92,7 @@ class SentenceAligner(object):
 		self.matching_methods = [all_matching_methods[m] for m in matching_methods]
 		self.device = torch.device(device)
 
-		self.embed_loader = EmbeddingLoader(model=self.model, device=self.device, layer=layer)
+		self.embed_loader = EmbeddingLoader(model=self.model, device=self.device, layer=layer, low_cpu_mem_usage=low_cpu_mem_usage)
 
 	@staticmethod
 	def get_max_weight_match(sim: np.ndarray) -> np.ndarray:
