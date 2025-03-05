@@ -1,13 +1,10 @@
 # coding=utf-8
 
-import os
 import logging
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
-from scipy.stats import entropy
 from scipy.sparse import csr_matrix
-from sklearn.preprocessing import normalize
 from sklearn.metrics.pairwise import cosine_similarity
 try:
 	import networkx as nx
